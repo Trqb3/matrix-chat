@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 PROJECT=$(basename $(pwd))
@@ -182,6 +181,13 @@ email:
   app_name: Matrix
 YAML"
 fi
+
+# Append serve_server_wellknown to homeserver.yaml
+echo ""
+echo "Enabling serve_server_wellknown..."
+docker run --rm \
+    --mount type=volume,src=${PROJECT}_synapse-data,dst=/data \
+    alpine sh -c "echo 'serve_server_wellknown: true' >> /data/homeserver.yaml"
 
 # Generate DB password
 DBPASS=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
