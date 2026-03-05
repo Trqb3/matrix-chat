@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: ${RESTART_POLICY}
+    environment:
+      POSTGRES_USER: ${DBUSER}
+      POSTGRES_PASSWORD: ${DBPASS}
+      POSTGRES_DB: ${DBNAME}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DBUSER} -d ${DBNAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  synapse:
+    image: matrixdotorg/synapse:${SYNAPSE_VERSION}
+    restart: ${RESTART_POLICY}
+    environment:
+      SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+    ports:
+      - "${SYNAPSE_FEDERATION_BIND}:${SYNAPSE_FEDERATION_PORT:-8008}:8008"
+    volumes:
+      - synapse-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fSs http://localhost:8008/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  element:
+    image: vectorim/element-web:latest
+    restart: ${RESTART_POLICY}
+    volumes:
+      - ./element-config.json:/app/config.json:ro
+    ports:
+      - "${ELEMENT_BIND}:${ELEMENT_PORT:-8080}:80"
+    depends_on:
+      - synapse
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fSs http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  synapse-data:
+  postgres-data:
